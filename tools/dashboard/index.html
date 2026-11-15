@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cold Spot — graphing</title>
+<style>
+  :root {
+    --bg:#0d1117; --panel:#161b22; --line:#262d36; --text:#c9d1d9; --dim:#7d8590;
+    --up:#2ea043; --down:#58a6ff; --warn:#d29922; --bad:#f85149; --ok:#3fb950;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  header { display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+           padding:12px 16px; border-bottom:1px solid var(--line); background:var(--panel); }
+  h1 { font-size:14px; margin:0 12px 0 0; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
+  input[type=text] { background:#0b0f14; border:1px solid var(--line); color:var(--text);
+                     padding:5px 8px; border-radius:4px; font:inherit; width:230px; }
+  button { background:#21262d; border:1px solid var(--line); color:var(--text);
+           padding:5px 11px; border-radius:4px; font:inherit; cursor:pointer; }
+  button:hover { background:#30363d; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--dim); display:inline-block; }
+  .dot.ok { background:var(--ok); } .dot.bad { background:var(--bad); } .dot.warn { background:var(--warn); }
+  main { padding:16px; display:grid; gap:14px; max-width:1180px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .card h2 { font-size:11px; margin:0 0 10px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); font-weight:600; }
+  canvas { width:100%; display:block; }
+  .kv { display:flex; gap:20px; flex-wrap:wrap; font-size:13px; }
+  .kv b { color:var(--text); font-weight:600; }
+  .kv span { color:var(--dim); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .empty { color:var(--dim); font-style:italic; padding:8px 0; }
+  .legend { display:flex; gap:16px; font-size:12px; color:var(--dim); margin-top:6px; }
+  .legend i { display:inline-block; width:10px; height:3px; vertical-align:middle; margin-right:5px; }
+  #err { color:var(--bad); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cold Spot</h1>
+  <span class="dot" id="link"></span>
+  <input type="text" id="api" value="" placeholder="http://127.0.0.1:8081">
+  <button id="connect">connect</button>
+  <button id="csv">export csv</button>
+  <span id="err"></span>
+</header>
+
+<main>
+  <div class="card">
+    <h2>now</h2>
+    <div class="kv">
+      <span>vpn <b id="vpn">—</b></span>
+      <span>guard <b id="guard">—</b></span>
+      <span>exit <b id="egress">—</b></span>
+      <span>baseline <b id="baseline">—</b></span>
+      <span>clients <b id="nclients">—</b></span>
+      <span>conns <b id="nconns">—</b></span>
+      <span>samples <b id="nsamples">0</b></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>throughput (bytes/s, rolling 5 min)</h2>
+    <canvas id="rate" height="180"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--down)"></i>down</span>
+      <span><i style="background:var(--up)"></i>up</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>per client (bytes/s down)</h2>
+    <canvas id="perclient" height="150"></canvas>
+    <div class="legend" id="pclegend"></div>
+  </div>
+
+  <div class="card">
+    <h2>exit address &amp; guard state</h2>
+    <canvas id="egress" height="90"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--ok)"></i>ok</span>
+      <span><i style="background:var(--warn)"></i>changed</span>
+      <span><i style="background:var(--bad)"></i>leak</span>
+      <span><i style="background:var(--dim)"></i>unknown / unreachable</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>clients</h2>
+    <table id="clients">
+      <thead><tr>
+        <th>ip</th><th>label</th><th class="num">conns</th><th class="num">open</th>
+        <th class="num">up</th><th class="num">down</th><th class="num">down/s</th><th>targets</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="empty" id="noclients">no clients yet — point something at the proxy</div>
+  </div>
+</main>
+
+<script>
+"use strict";
+
+// Where the daemon lives. When this page is served BY the daemon (127.0.0.1:8081)
+// the default is the same origin, which needs no configuration at all.
+const params = new URLSearchParams(location.search);
+const API = {
+  base: params.get("api") ||
+        (location.protocol.startsWith("http") ? location.origin : "http://127.0.0.1:8081")
+};
+document.getElementById("api").value = API.base;
+
+const WINDOW = 150;          // samples kept (150 x 2 s = 5 min)
+const INTERVAL = 2000;
+
+const state = {
+  samples: [],               // {t, up, down, per:{ip:{up,down}}, guard, egress}
+  timer: null,
+  prev: null,                // previous raw /state for delta computation
+  prevT: 0,
+  colors: new Map(),
+};
+
+const PALETTE = ["#58a6ff","#3fb950","#d29922","#bc8cff","#ff7b72","#39c5cf","#f0883e","#8b949e"];
+
+function colorFor(ip) {
+  if (!state.colors.has(ip)) state.colors.set(ip, PALETTE[state.colors.size % PALETTE.length]);
+  return state.colors.get(ip);
+}
+
+const fmtBytes = n => {
+  if (!isFinite(n) || n <= 0) return "0 B";
+  const u = ["B","KB","MB","GB","TB"];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (n < 10 ? n.toFixed(1) : Math.round(n)) + " " + u[i];
+};
+const fmtRate = n => fmtBytes(n) + "/s";
+
+async function tick() {
+  let s;
+  try {
+    const r = await fetch(API.base + "/state", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    s = await r.json();
+    document.getElementById("link").className = "dot ok";
+    document.getElementById("err").textContent = "";
+  } catch (e) {
+    document.getElementById("link").className = "dot bad";
+    document.getElementById("err").textContent = "daemon unreachable — " + e.message;
+    return;
+  }
+
+  const now = Date.now();
+  const t = s.totals || {};
+  const g = s.guard || {};
+
+  let rateUp = 0, rateDown = 0;
+  const per = {};
+
+  if (state.prev) {
+    const dt = Math.max((now - state.prevT) / 1000, 0.001);
+    const p = state.prev.totals || {};
+    rateDown = Math.max((t.down || 0) - (p.down || 0), 0) / dt;
+    rateUp = Math.max((t.up || 0) - (p.up || 0), 0) / dt;
+    for (const ip of Object.keys(s.clients || {})) {
+      const cur = s.clients[ip], old = (state.prev.clients || {})[ip] || {};
+      per[ip] = {
+        down: Math.max((cur.down || 0) - (old.down || 0), 0) / dt,
+        up: Math.max((cur.up || 0) - (old.up || 0), 0) / dt,
+      };
+    }
+  }
+
+  state.prev = s;
+  state.prevT = now;
+
+  state.samples.push({ t: now, up: rateUp, down: rateDown, per, guard: g.state || "?", egress: g.egress || "" });
+  while (state.samples.length > WINDOW) state.samples.shift();
+
+  // --- the "now" strip -----------------------------------------------------
+  document.getElementById("vpn").textContent = s.vpn || "none";
+  const gd = document.getElementById("guard");
+  gd.textContent = g.state || "?";
+  gd.style.color = g.state === "ok" ? "var(--ok)"
+                  : g.state === "leak" ? "var(--bad)"
+                  : g.state === "changed" ? "var(--warn)" : "var(--dim)";
+  document.getElementById("egress").textContent = g.egress || "—";
+  document.getElementById("baseline").textContent = g.baseline || "(learning)";
+  document.getElementById("nclients").textContent = t.clients ?? 0;
+  document.getElementById("nconns").textContent = t.conns ?? 0;
+  document.getElementById("nsamples").textContent = state.samples.length;
+
+  drawRate();
+  drawPerClient();
+  drawEgress();
+  drawClients(s, per);
+}
+
+// ---------------------------------------------------------------- drawing ---
+
+function fit(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight || canvas.height;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function series(ctx, w, h, values, color, max) {
+  if (values.length < 2) return;
+  const n = state.samples.length <= 1 ? 1 : state.samples.length - 1;
+  ctx.beginPath();
+  values.forEach((v, i) => {
+    const x = (i / n) * w;
+    const y = h - (max > 0 ? (v / max) * (h - 4) : 0) - 1;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.6;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+}
+
+function drawRate() {
+  const { ctx, w, h } = fit(document.getElementById("rate"));
+  const down = state.samples.map(s => s.down);
+  const up = state.samples.map(s => s.up);
+  const max = Math.max(1, ...down, ...up);
+
+  ctx.strokeStyle = "rgba(255,255,255,.06)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = (i / 4) * (h - 2) + 1;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  series(ctx, w, h, down, "#58a6ff", max);
+  series(ctx, w, h, up, "#2ea043", max);
+
+  ctx.fillStyle = "#7d8590";
+  ctx.font = "11px ui-monospace,monospace";
+  ctx.fillText("peak " + fmtRate(max), 6, 12);
+}
+
+function drawPerClient() {
+  const { ctx, w, h } = fit(document.getElementById("perclient"));
+  const ips = new Set();
+  state.samples.forEach(s => Object.keys(s.per || {}).forEach(ip => ips.add(ip)));
+  if (!ips.size) {
+    ctx.fillStyle = "#7d8590"; ctx.font = "12px ui-monospace,monospace";
+    ctx.fillText("waiting for traffic", 6, 16);
+    document.getElementById("pclegend").innerHTML = "";
+    return;
+  }
+  let max = 1;
+  state.samples.forEach(s => Object.values(s.per || {}).forEach(v => { max = Math.max(max, v.down); }));
+
+  const legend = [];
+  for (const ip of ips) {
+    const vals = state.samples.map(s => (s.per && s.per[ip] ? s.per[ip].down : 0));
+    const c = colorFor(ip);
+    series(ctx, w, h, vals, c, max);
+    legend.push(`<span><i style="background:${c}"></i>${ip}</span>`);
+  }
+  document.getElementById("pclegend").innerHTML = legend.join("");
+  ctx.fillStyle = "#7d8590";
+  ctx.font = "11px ui-monospace,monospace";
+  ctx.fillText("peak " + fmtRate(max), 6, 12);
+}
+
+function drawEgress() {
+  const { ctx, w, h } = fit(document.getElementById("egress"));
+  const n = Math.max(state.samples.length, 1);
+  const bw = Math.max(w / n, 2);
+  state.samples.forEach((s, i) => {
+    const c = s.guard === "ok" ? "#3fb950"
+            : s.guard === "leak" ? "#f85149"
+            : s.guard === "changed" ? "#d29922" : "#484f58";
+    ctx.fillStyle = c;
+    ctx.fillRect(i * bw, 4, Math.max(bw - 1, 1), h - 8);
+  });
+  const last = state.samples[state.samples.length - 1];
+  if (last) {
+    ctx.fillStyle = "#c9d1d9";
+    ctx.font = "11px ui-monospace,monospace";
+    ctx.fillText(last.guard + "  " + (last.egress || "—"), 6, h - 6);
+  }
+}
+
+function drawClients(s, per) {
+  const tbody = document.querySelector("#clients tbody");
+  const rows = Object.entries(s.clients || {})
+    .sort((a, b) => (b[1].down || 0) - (a[1].down || 0));
+  document.getElementById("noclients").style.display = rows.length ? "none" : "block";
+  tbody.innerHTML = rows.map(([ip, c]) => {
+    const targets = Object.keys(c.targets || {}).slice(0, 3).join(", ") || "—";
+    const rate = per[ip] ? fmtRate(per[ip].down) : "—";
+    const dot = c.deny ? '<span class="dot bad"></span> ' : "";
+    return `<tr>
+      <td>${dot}${ip}</td>
+      <td>${c.label ? escapeHtml(c.label) : "—"}</td>
+      <td class="num">${c.conns || 0}</td>
+      <td class="num">${c.open || 0}</td>
+      <td class="num">${fmtBytes(c.up || 0)}</td>
+      <td class="num">${fmtBytes(c.down || 0)}</td>
+      <td class="num">${rate}</td>
+      <td>${escapeHtml(targets)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+}
+
+// ------------------------------------------------------------------ export ---
+
+function exportCsv() {
+  if (!state.samples.length) return;
+  const ips = new Set();
+  state.samples.forEach(s => Object.keys(s.per || {}).forEach(ip => ips.add(ip)));
+  const ipsArr = [...ips];
+  const head = ["iso_time", "secs", "total_up_Bps", "total_down_Bps", "guard", "egress",
+                ...ipsArr.map(ip => "down_Bps[" + ip + "]")];
+  const t0 = state.samples[0].t;
+  const lines = [head.join(",")];
+  for (const s of state.samples) {
+    lines.push([
+      new Date(s.t).toISOString(),
+      ((s.t - t0) / 1000).toFixed(0),
+      s.up.toFixed(0),
+      s.down.toFixed(0),
+      s.guard,
+      s.egress || "",
+      ...ipsArr.map(ip => ((s.per && s.per[ip]) ? s.per[ip].down.toFixed(0) : "0")),
+    ].join(","));
+  }
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "coldspot-" + new Date().toISOString().replace(/[:.]/g, "-") + ".csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+// ------------------------------------------------------------------ wiring ---
+
+document.getElementById("connect").onclick = () => {
+  API.base = document.getElementById("api").value.trim().replace(/\/+$/, "") || API.base;
+  state.samples = []; state.prev = null; state.prevT = 0;
+  document.getElementById("err").textContent = "";
+  if (state.timer) clearInterval(state.timer);
+  tick();
+  state.timer = setInterval(tick, INTERVAL);
+};
+document.getElementById("csv").onclick = exportCsv;
+window.addEventListener("resize", () => { drawRate(); drawPerClient(); drawEgress(); });
+
+// start
+tick();
+state.timer = setInterval(tick, INTERVAL);
+</script>
+</body>
+</html>

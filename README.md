@@ -38,7 +38,7 @@ Three repositories. This one is the entry point — everything else is linked fr
 | --- | --- |
 | **[cold-spot](https://github.com/volkdude85/cold-spot)** ← you are here | the daemon, the drivers, the design record, the ROM patch, and the original prototype |
 | **[cold-spot-android](https://github.com/volkdude85/cold-spot-android)** | the app shell: foreground service, WebView panel, VPN watcher, build scripts |
-| **[cold-spot-graphing](https://github.com/volkdude85/cold-spot-graphing)** | a single-file telemetry dashboard that charts the gate's own counters and exit history |
+| **[cold-spot-graphene](https://github.com/volkdude85/cold-spot-graphene)** | the ROM route: a 35-line tethering patch so the stock hotspot itself rides the VPN, with no client configuration at all |
 
 To build the whole thing: clone all three side by side, then `cold-spot-android` picks up the
 daemon from `../cold-spot` on its own.
@@ -46,7 +46,7 @@ daemon from `../cold-spot` on its own.
 ```bash
 git clone https://github.com/volkdude85/cold-spot
 git clone https://github.com/volkdude85/cold-spot-android
-git clone https://github.com/volkdude85/cold-spot-graphing
+git clone https://github.com/volkdude85/cold-spot-graphene
 cd cold-spot-android && ./scripts/build-daemon.sh ../cold-spot && ./gradlew :app:assembleDebug
 ```
 
@@ -165,6 +165,7 @@ Default hosts, if you leave `-egress-url` empty: `ifconfig.me`, `api.ipify.org`,
 | [SECURITY.md](SECURITY.md) | what counts as a vulnerability, and what is deliberately out of scope |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | build, test, and the four rules that actually matter |
 | [CHANGELOG.md](CHANGELOG.md) | what changed in each build |
+| [tools/dashboard/](tools/dashboard/) | single-file telemetry view for a running gate |
 
 ## Honest status
 
