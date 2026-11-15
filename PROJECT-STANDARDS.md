@@ -8,6 +8,23 @@ That is the whole file, really. **Nothing here is a contract and nobody signs an
 description of how the project is built and what to expect from it — not a set of obligations for
 anyone who shows up.
 
+## Who is behind this
+
+I am a **technician, not a coder**. Trades and bench work — instruments, controls, the kind of
+fault-finding where you either find the thing or the machine stays broken. More years with a meter
+in my hand than in an IDE, and I came to software that way rather than the other way round.
+
+What that means for a project like this is not typing speed. It is knowing what the machine is
+actually doing, and refusing to accept a design that does not match it. When something here says
+"the tethering service asks for an upstream that excludes VPNs", that came out of `dumpsys` on a
+real phone, not out of a tutorial.
+
+Most of this code was written **in conversation** — what some people call vibe coding. I describe
+what the thing has to do and how it has to fail, an AI writes it, and then we find out who was
+right by measuring. That works when the person driving it has a clear picture of the target and
+refuses to let a confident answer stand in for a measurement, and it is why so much of this
+repository is instrument output rather than prose.
+
 ## The standards I hold myself to
 
 Written down properly in [docs/CODE-STANDARDS.md](docs/CODE-STANDARDS.md): no memory holes, no

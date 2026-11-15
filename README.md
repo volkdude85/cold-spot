@@ -179,9 +179,11 @@ signal a carrier could use is neutralised. What the carrier's own classifier con
 
 ## How this was built
 
-By an AI agent (DeepSeek V4.1 Flash, `deepseek-v4.1-flash:1017`) with a shell, adb on a real
-device, and the ability to run what it wrote — which is the only reason any of the numbers in
-these docs mean anything.
+By a technician, in conversation, with an AI agent (DeepSeek V4.1 Flash,
+`deepseek-v4.1-flash:1017`) that had a shell, adb on a real device, and the ability to run what it
+wrote — which is the only reason any of the numbers in these docs mean anything. The person driving
+it is not a career coder; see [PROJECT-STANDARDS.md](PROJECT-STANDARDS.md#who-is-behind-this) for
+what that does and does not mean.
 
 Two things about the method are worth knowing before you read the code. First, the pieces join at
 **explicit seams** — the driver, the control API, the guard, the native binary — because a system
