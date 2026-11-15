@@ -1,0 +1,7 @@
+{
+  "name": "myvpn",
+  "title": "My VPN",
+  "packages": ["com.example.myvpn"],
+  "expect_egress": [],
+  "notes": "No published exit ranges: leave expect_egress empty and arm block-on-change. The guard learns this tunnel's exit and fails closed if it moves."
+}

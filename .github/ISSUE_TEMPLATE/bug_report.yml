@@ -1,0 +1,52 @@
+name: Bug report
+description: Something does not work, or works and should not.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: `docs/LIMITS.md` lists what this project does **not** do, and
+        `docs/BUGS.md` lists everything already found. Your carrier noticing tethering is the
+        subject of the project, not a bug — see LIMITS.md.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The behaviour, and what you expected instead.
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The exact commands, in order. If it involves a client, say which and how it was pointed at the gate.
+      placeholder: |
+        curl -x http://<phone>:8080 https://ifconfig.me
+        curl -s <phone>:8081/state
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Build
+      description: From `adb shell dumpsys package io.coldspot.gate | grep versionName`, or the commit hash for the daemon.
+    validations: { required: true }
+  - type: input
+    id: device
+    attributes:
+      label: Device and ROM
+      placeholder: Pixel 7a, GrapheneOS 2026110201, Android 17
+  - type: input
+    id: vpn
+    attributes:
+      label: VPN app and version, and which driver the panel named
+      placeholder: Mullvad 2026.12, driver "mullvad"
+  - type: textarea
+    id: state
+    attributes:
+      label: Output of /state
+      description: This is the single most useful thing in the report. Redact addresses if you like.
+      render: json
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant logcat
+      description: "`adb logcat -s noragate` — the daemon logs the driver seam, guard transitions and every probe failure."

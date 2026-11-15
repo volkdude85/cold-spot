@@ -1,0 +1,32 @@
+name: Feature request
+description: Something this should do and does not.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and where it stops working. A use case beats a proposed implementation.
+    validations: { required: true }
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you think the answer is
+      description: Optional. If it changes the shape of anything, read docs/DESIGN.md first — it records what each existing decision cost.
+  - type: dropdown
+    id: route
+    attributes:
+      label: Which route does this belong to?
+      options:
+        - app-level gate (this project — needs a proxy field on the client)
+        - root module (no client config, needs root)
+        - patched tethering module (no client config, needs a ROM build)
+        - a router in front of the phone (no client config at all)
+        - not sure
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Please confirm
+      options:
+        - label: I have read docs/LIMITS.md and this is not something it already says is out of scope
+          required: true

@@ -1,0 +1,16 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jar binary
+*.so  binary
+*.apk binary
+
+*.go   text
+*.java text
+*.md   text
+*.yml  text
+
+# Windows launchers must keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf

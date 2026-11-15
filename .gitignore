@@ -1,0 +1,11 @@
+# build output
+coldspotd
+*.so
+*.apk
+/dist/
+
+# scratch
+*.log
+*.tmp
+.DS_Store
+__pycache__/

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security issue
+    url: https://github.com/volkdude85/cold-spot/security/policy
+    about: Please do not open a public issue for a vulnerability — see SECURITY.md.
+  - name: "Not a bug: my carrier still classifies tethering"
+    url: https://github.com/volkdude85/cold-spot/blob/main/docs/LIMITS.md
+    about: Read LIMITS.md first — what this project can and cannot prove is written down.

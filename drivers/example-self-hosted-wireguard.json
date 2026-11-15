@@ -1,0 +1,8 @@
+{
+  "name": "wg-home",
+  "title": "WireGuard (self-hosted)",
+  "packages": ["com.wireguard.android"],
+  "dns": "10.7.0.1",
+  "expect_egress": ["203.0.113.7/32"],
+  "notes": "Your own endpoint, so you know the exit address and can assert it. Replace the CIDR with your server's public address."
+}
