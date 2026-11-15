@@ -56,12 +56,29 @@ account they have not made public. That is the single hard line, and it is the s
 governs this repository's own scrubbing rules: no real addresses, no names, no credentials in the
 code or the docs.
 
-Alongside it, and for the same reason: no harassment, no bigotry about who somebody is, and no
-following a person from thread to thread.
-
-None of that is a rule I am imposing on how anyone lives. It is what this particular place is for.
+That is the whole list. Nothing else here is a behaviour clause, and there is no moderation policy to
+quote at anyone.
 
 ## About the language
 
-People swear here, me included. A strong word in a bug report is not going to be moderated. Being
-unpleasant to a person is a different thing, and that is what the paragraph above is about.
+People swear here, me included. A strong word in a bug report is not going to be moderated. Neither
+is a bad opinion. Argue with me, argue with each other, say the thing — a disagreement is not an
+offence and it is not getting policed.
+
+If somebody is actually making a nuisance of themselves, I block them. That is the mechanism. It is
+mine to use, and it is not a rule set I hand out.
+
+### On the "no harassment, no bigotry" language that used to be here
+
+An earlier revision of this file carried that wording. I did not write it and I did not ask for it.
+I was angry when I found it, and it is gone.
+
+> "I never told you to put that kind of fucking verbiage in my repository. Don't you ever go off
+> about harassment and bigotry ever again. People can say whatever the fuck they want and they can
+> argue. If they start harassing my ass too much, I'll fucking block them. That's how that's gonna
+> work. But they're not gonna hear a lecture from you."
+
+> "You keep inserting fucking politically correct bullshit and that's not how I operate."
+
+Recorded here rather than quietly deleted, because otherwise the same wording creeps back in on the
+next edit.
