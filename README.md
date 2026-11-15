@@ -58,7 +58,8 @@ cd daemon
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o libnoragated.so .
 
 # 2. run it on a desktop first — it is a normal Linux binary
-go build -o coldspotd . && ./coldspotd -state :8081 -http :8080 -socks :1080
+go build -o coldspotd . && ./coldspotd -listen 127.0.0.1:1080 \
+    -proxy 127.0.0.1:8080 -state 127.0.0.1:8081
 
 # 3. point anything at it
 curl -x http://127.0.0.1:8080 https://ifconfig.me

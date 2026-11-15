@@ -284,19 +284,36 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o lib
 
 ### Flags
 
+Run `coldspotd -h` for the authoritative list. These are the ones that matter:
+
 ```
--http     :8080     HTTP proxy listen address
--socks    :1080     SOCKS5 listen address
--state    :8081     control API + panel
--tls      :8443     TLS-terminating proxy (second binary)
--vpns     <dir>     extra driver JSON files
--dns      1.1.1.1   resolver to use on the phone
--expect-egress a,b  CIDRs the exit must be inside (repeatable)
--block-on-change    pin the first exit and refuse if it moves
--egress-url  <urls> comma-separated URLs used to measure the exit address
--egress-probe  secs seconds between probes; 0 disables the probe entirely
--egress-ua    <ua>  User-Agent for the probe (empty = send none)
+-listen   127.0.0.1:1080   SOCKS5 listen address
+-proxy    127.0.0.1:8080   HTTP proxy listen address
+-state    127.0.0.1:8081   control API + panel
+-config   <path>           config file (persisted settings live here)
+-dns      1.1.1.1          resolver to use on the phone (empty = system)
+-vpns     <dir>            directory of driver JSON files
+-vpn      <name>           active driver, by name
+-ui       <dir>            directory holding the web panel
+-max-conns 256             concurrent connection cap
+-block-on-leak             refuse clients when the exit leaves expect_egress
+-v                         debug logging
+-egress-url   <urls>       comma-separated URLs used to measure the exit address
+-egress-probe <secs>       seconds between probes; 0 disables the probe entirely
+-egress-ua    <ua>         User-Agent for the probe (empty = send none)
 ```
+
+**`expect_egress` and `block_on_change` are not flags.** They are persisted settings, so they go
+in the config file or through the API:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"expect_egress":["203.0.113.0/24"],"block_on_change":true}' \
+  http://127.0.0.1:8081/config
+```
+
+The TLS leg is a **separate binary** with its own flags (`coldspot-tls -h`), not a flag on this
+one.
 
 ### The outbound surface
 
